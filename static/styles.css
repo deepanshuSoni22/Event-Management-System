@@ -1,9 +1,9 @@
-.navbar-custom {
-    background-color: rgba(255, 255, 255, 0.5); /* You can set any color or transparency */
+.navbar-nav {
+    font-family: 'Honk';
+    font-size: larger;
+    font-weight: 800;
 }
 
-
-.navbar-nav
-{
-    font-family: 'Honk';
+.navbar {
+    background-color: black;
 }

@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Sign Up
+{% endblock %}
+
+{% block body %}
+    {% set background_image = '/static/signup-background.jpg' %}
+    <div id="register-page" class="d-flex justify-content-center align-items-center vh-100">
+        <a href="/">
+            <img id="logo" src="/static/logo.png" alt="Main Logo">
+        </a>
+        <div class="card" style="margin: 1rem; background-color: rgb(23, 136, 156);">
+            <h2 class="text-center mb-4" style="font-family: 'Honk';">Sign Up</h2>
+
+            <form action="/signup" method="post" novalidate>
+                <div class="mb-3">
+                    <input type="email" class="form-control" name="email" placeholder="Email" autocomplete="off" required aria-label="Email">
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" name="password" placeholder="Password" autocomplete="off" required aria-label="Password">
+                </div>
+                <div class="mb-3">
+                    <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required aria-label="Confirm Password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

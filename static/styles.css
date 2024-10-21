@@ -2,11 +2,9 @@
 body {
     overflow: hidden;
     height: 100vh;
-    background-image: url('/static/background.jpg');
     background-position: center;
     background-size: cover;
 }
-
 
 #logo {
     height: 100px;
@@ -15,8 +13,7 @@ body {
     margin-top: 20px;   
 }
 
-.container
-{
+.container {
     padding: 1rem;
     color: white;
     text-align: center;
@@ -32,9 +29,7 @@ body {
     font-weight: 1000; /* Set font weight (bold) */
 }
 
-
-#main-content
-{
+#main-content {
     align-items: end;
     justify-items: left;
 }
@@ -44,20 +39,14 @@ body {
     margin-right: 1rem;
 }
 
-
-
-/* Regsiter Page Styling */
-#register-button
-{
-    justify-content: center;
-}
-
+/* Register Page Styling */
 .card {
     border-radius: 40px;
     padding: 40px;
     width: 400px;
     box-shadow: 0 4px 10px rgb(220, 239, 10);
 }
+
 .btn-social {
     margin: 10px 0;
 }
@@ -66,7 +55,4 @@ body {
     margin-top: 0.3rem;
 }
 
-#register-page
-{
-    background-image: url('/static/register-background.jpg');
-}
+

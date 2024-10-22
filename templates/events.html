@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Events
+{% endblock %}
+
+{% block body %}
+
+    {% set background_image = '/static/event-background.jpg' %}
+
+    <header>
+        <nav class="navbar navbar-expand-lg container">
+            <a class="navbar-brand" href="/home"><img id="logo" src="/static/logo.png"></a>
+            <button id="menu-border" class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon" id="menu-button"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/events">Events</a></li><hr>
+                    <li class="nav-item"><a class="nav-link" href="/host">Host</a></li><hr>
+                </ul>
+            </div>
+        </nav>
+    </header>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Upcoming Events</h1>
+        <div class="row">
+            {% for event in events %}
+                <div class="col-md-4 mb-4">
+                    <div class="card" style="width: 100%;">
+                        <h5 class="card-title text-center">{{ event.title }}</h5>
+                        <img src="{{ url_for('static', filename=event.image) }}" class="card-img-top" alt="Event Image">
+                        <div class="card-body">
+                            <h2 style="font-weight: 900;" class="text-center">{{ event.title }}</h2>
+                            <p class="card-text">
+                                <strong>Date:</strong> {{ event.date }}<br>
+                                <strong>Label:</strong> {{ event.label }}<br>
+                                <strong>Description:</strong> {{ event.description }}
+                            </p>
+                            {% if current_user.id == event.user_id %}  <!-- Show delete button only for the creator -->
+                                <form action="{{ url_for('delete_event', event_id=event.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-danger">Delete Event</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">No events available.</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+{% endblock %}

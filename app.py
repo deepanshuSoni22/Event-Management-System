@@ -1,49 +1,53 @@
 from flask import Flask, render_template, request, session, redirect, flash
 from flask_session import Session
-from flask_login import LoginManager, login_required, login_user, logout_user
+from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import re
-import sqlite3
+import os
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-
-class User(UserMixin):
-    def __init__(self, id, email):
-        self.id = id
-        self.email = email
 
 # Configure application
 app = Flask(__name__)
-
-# Configure session to use filesystem (instead of signed cookies)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Ensure this directory exists
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize extensions
+db = SQLAlchemy(app)
 Session(app)
 
 # Set up Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# Database connection function
-def get_db_connection():
-    db = sqlite3.connect('users.db')
-    db.row_factory = sqlite3.Row
-    return db
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(128), nullable=False)
 
-# Create users table if it doesn't exist
-def init_db():
-    with get_db_connection() as db:
-        db.execute('''CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        email TEXT UNIQUE NOT NULL,
-                        password TEXT NOT NULL
-                    )''')
+class Event(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    image = db.Column(db.String(100), nullable=False)
+    date = db.Column(db.String(10), nullable=False)  # You might want to use DateTime instead
+    label = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-init_db()
+# Create all tables
+with app.app_context():
+    db.create_all()
 
-# Ensures that the responses from your Flask application are not cached by browsers or proxies
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+# Ensure responses aren't cached
 @app.after_request
 def after_request(response):
-    """Ensure responses aren't cached"""
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Expires"] = 0
     response.headers["Pragma"] = "no-cache"
@@ -60,52 +64,48 @@ def signup():
     if request.method == "GET":
         return render_template("signup.html", background_image='/static/signup-background.jpg')
     
-    else:
-        email = request.form.get("email")
-        password = request.form.get("password")
-        confirmation = request.form.get("confirm_password")
+    email = request.form.get("email")
+    password = request.form.get("password")
+    confirmation = request.form.get("confirm_password")
 
-        # Validate User's details
-        email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-        if not email:
-            flash("Must provide an email!")
-            return redirect("/signup")
-        elif not re.match(email_pattern, email):
-            flash("Invalid Email format!")
-            return redirect("/signup")
+    # Validate User's details
+    email_pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    if not email:
+        flash("Must provide an email!")
+        return redirect("/signup")
+    elif not re.match(email_pattern, email):
+        flash("Invalid Email format!")
+        return redirect("/signup")
 
-        if not password:
-            flash("Must enter a password!")
-            return redirect("/signup")
+    if not password:
+        flash("Must enter a password!")
+        return redirect("/signup")
 
-        if not confirmation:
-            flash("Must provide confirm password!")
-            return redirect("/signup")
+    if not confirmation:
+        flash("Must provide confirm password!")
+        return redirect("/signup")
 
-        if password != confirmation:
-            flash("Password and confirm must match!")
-            return redirect("/signup")
-        
-        # Hash the password
-        hashed_password = generate_password_hash(password)
+    if password != confirmation:
+        flash("Password and confirm must match!")
+        return redirect("/signup")
+    
+    # Hash the password
+    hashed_password = generate_password_hash(password)
 
-        # Check if user already exists
-        db = get_db_connection()
-        existing_user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    # Check if user already exists
+    existing_user = User.query.filter_by(email=email).first()
 
-        if existing_user:
-            flash("User already exists. Please log in.")
-            db.close() # Ensure database connection is closed
-            return redirect("/signup")
-        
-        # Insert new user into database
-        db.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, hashed_password))
-        db.commit()
-        db.close()
+    if existing_user:
+        flash("User already exists. Please log in.")
+        return redirect("/signup")
+    
+    # Insert new user into database
+    new_user = User(email=email, password=hashed_password)
+    db.session.add(new_user)
+    db.session.commit()
 
-        flash("Signup successful! Please log in.")
-        return redirect("/login")
-
+    flash("Signup successful! Please log in.")
+    return redirect("/login")
 
 # Login Route
 @app.route("/login", methods=["GET", "POST"])
@@ -113,7 +113,6 @@ def login():
     if request.method == "GET":
         return render_template("login.html", background_image='/static/login-background.jpg')
 
-    # Validate user input
     email = request.form.get("email")
     if not email:
         flash("Must provide an email!")
@@ -125,21 +124,16 @@ def login():
         return redirect("/login")
 
     # Fetch user from database
-    db = get_db_connection()
-    user_row = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
-    db.close()
+    user_row = User.query.filter_by(email=email).first()
 
-    if user_row is None or not check_password_hash(user_row["password"], password):
+    if user_row is None or not check_password_hash(user_row.password, password):
         flash("Invalid email or password!")
         return redirect("/login")
 
     # Successful login
-    user = User(id=user_row["id"], email=user_row["email"])  # Create a User instance
-    login_user(user)  # Use Flask-Login to log in the user
+    login_user(user_row)
     flash("Login successful!")
-    return redirect("/home")  # Redirect to home after successful login
-
-
+    return redirect("/home")
 
 # Home Route
 @app.route("/home")
@@ -147,25 +141,52 @@ def login():
 def home():
     return render_template("home.html", background_image='/static/home-background.jpg')
 
-
 # User loader for flask login
 @login_manager.user_loader
 def load_user(user_id):
-    db = get_db_connection()
-    user_row = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-    db.close()
-    
-    if user_row is None:
-        return None
-    
-    return User(id=user_row["id"], email=user_row["email"])  # Return a User instance
-
+    return User.query.get(int(user_id))
 
 # Logout route
 @app.route("/logout")
 @login_required
 def logout():
-    logout_user()  # Use Flask-Login's logout_user function
+    logout_user()
     flash("Logged out successfully!")
     return redirect("/")
 
+# Host event route
+@app.route("/host", methods=["GET", "POST"])
+@login_required
+def host_event():
+    if request.method == "POST":
+        title = request.form.get("title")
+        description = request.form.get("description")
+        label = request.form.get("label")
+        date = request.form.get("date")
+        file = request.files.get("image")
+
+        # Save the image
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            # Create new event
+            new_event = Event(
+                title=title,
+                description=description,
+                image=filename,
+                date=date,
+                label=label,
+                user_id=current_user.id
+            )
+
+            db.session.add(new_event)
+            db.session.commit()
+            flash("Event added successfully", "success")
+
+    events = Event.query.all()  # Fetch all events to display
+    return render_template("host.html", background_image='/static/host-background.jpg', events=events)
+
+if __name__ == "__main__":
+    app.run(debug=True)

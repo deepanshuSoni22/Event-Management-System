@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, redirect, flash
+from flask import Flask, render_template, request, session, redirect, flash, url_for
 from flask_session import Session
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,6 +7,7 @@ import re
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+
 
 # Configure application
 app = Flask(__name__)
@@ -165,6 +166,11 @@ def host_event():
         date = request.form.get("date")
         file = request.files.get("image")
 
+        # Check if the 'uploads' directory exists, if not, create it
+        upload_folder = os.path.join(app.static_folder, 'uploads')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+
         # Save the image
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -185,8 +191,20 @@ def host_event():
             db.session.commit()
             flash("Event added successfully", "success")
 
-    events = Event.query.all()  # Fetch all events to display
-    return render_template("host.html", background_image='/static/host-background.jpg', events=events)
+            # Redirect to events page after event is added
+            return redirect(url_for("events"))
+
+
+    return render_template("host.html", background_image='/static/host-background.jpg')
+
+
+# Events route to display all events
+@app.route("/events")
+@login_required
+def events():
+    events = Event.query.all()  # Fetch all events from the database
+    return render_template("events.html", events=events, background_image='/static/event-background.jpg')
+
 
 if __name__ == "__main__":
     app.run(debug=True)

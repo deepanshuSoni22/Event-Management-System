@@ -8,13 +8,12 @@ import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 
-
 # Configure application
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
-app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Ensure this directory exists
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
@@ -35,7 +34,7 @@ class Event(db.Model):
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.String(10), nullable=False)  # You might want to use DateTime instead
+    date = db.Column(db.String(10), nullable=False)  # Consider using DateTime instead
     label = db.Column(db.String(50), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
@@ -47,10 +46,14 @@ class Interested(db.Model):
     user = db.relationship('User', backref=db.backref('interested_events', lazy=True))
     event = db.relationship('Event', backref=db.backref('interested_users', lazy=True))
 
-
 # Create all tables
 with app.app_context():
     db.create_all()
+
+# Ensure uploads directory exists at startup
+upload_folder = os.path.join(app.static_folder, 'uploads')
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
@@ -149,10 +152,8 @@ def login():
 @login_required
 def home():
     # Assuming `Interested` is the table tracking interested events
-    # and `event` is a relationship to the `Event` model
     interested_events = [interested.event for interested in current_user.interested_events]
     return render_template("home.html", interested_events=interested_events, background_image='/static/home-background.jpg')
-
 
 # User loader for flask login
 @login_manager.user_loader
@@ -178,11 +179,6 @@ def host_event():
         date = request.form.get("date")
         file = request.files.get("image")
 
-        # Check if the 'uploads' directory exists, if not, create it
-        upload_folder = os.path.join(app.static_folder, 'uploads')
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-
         # Save the image
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -206,9 +202,7 @@ def host_event():
             # Redirect to events page after event is added
             return redirect(url_for("events"))
 
-
     return render_template("host.html", background_image='/static/host-background.jpg')
-
 
 # Events route to display all events
 @app.route("/events")
@@ -216,7 +210,6 @@ def host_event():
 def events():
     events = Event.query.all()  # Fetch all events from the database
     return render_template("events.html", events=events, background_image='/static/event-background.jpg')
-
 
 # Delete event route
 @app.route("/delete_event/<int:event_id>", methods=["POST"])
@@ -236,7 +229,6 @@ def delete_event(event_id):
 
     flash("Event deleted successfully", "success")
     return redirect(url_for('events'))
-
 
 # Interested Route
 @app.route("/add_interested/<int:event_id>", methods=["POST"])
@@ -259,7 +251,6 @@ def add_interested(event_id):
 
     return redirect(url_for('events'))
 
-
 @app.route("/remove_interested/<int:event_id>", methods=["POST"])
 @login_required
 def remove_interested(event_id):
@@ -271,7 +262,6 @@ def remove_interested(event_id):
         db.session.commit()
     
     return redirect("/home")
-
 
 if __name__ == "__main__":
     app.run(debug=True)

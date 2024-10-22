@@ -18,6 +18,7 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="/events">Events</a></li><hr>
                     <li class="nav-item"><a class="nav-link" href="/host">Host</a></li><hr>
+                    <li class="nav-item"><a class="nav-link" href="/logout">Log out</a></li><hr>
                 </ul>
             </div>
         </nav>
@@ -36,6 +37,28 @@
                             <p class="card-text"><strong>Date:</strong> {{ event.date }}</p>
                             <p class="card-text"><strong>Label:</strong> {{ event.label }}</p>
                             <p class="card-text">{{ event.description }}</p>
+
+                            <!-- Show delete button only for the event's host -->
+                            {% if current_user.id == event.user_id %}
+
+                                <form method="POST" action="/delete_event/{{ event.id }}">
+                                    <button type="submit" class="btn btn-danger">Delete Event</button>
+                                </form>
+
+                            {% endif %}
+
+                            <!-- Show "Interested" button if the user isn't the host and hasn't already marked interest -->
+                            {% if current_user.id != event.user_id %}
+                                <form method="POST" action="/add_interested/{{ event.id }}">
+                                    <button type="submit" class="btn btn-success">
+                                        {% if event in current_user.interested_events %}
+                                            Interested ✓
+                                        {% else %}
+                                            Mark Interested
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

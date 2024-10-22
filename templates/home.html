@@ -23,7 +23,36 @@
             </div>
         </nav>
     </header>
-    
 
+    <main>
+        <div class="container mt-5">
+            <h2>Your Interested Events</h2>
+            <div class="row">
+                <!-- Loop through all interested events for the current user -->
+                {% if interested_events %}
+                    {% for event in interested_events %}
+                        <div class="col-md-4">
+                            <div class="card mb-4">
+                                <img src="{{ url_for('static', filename='uploads/' + event.image) }}" class="card-img-top" alt="{{ event.title }}">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ event.title }}</h5>
+                                    <p class="card-text"><strong>Date:</strong> {{ event.date }}</p>
+                                    <p class="card-text"><strong>Label:</strong> {{ event.label }}</p>
+                                    <p class="card-text">{{ event.description }}</p>
+
+                                    <!-- Form to mark as "Not Interested" -->
+                                    <form method="POST" action="/remove_interested/{{ event.id }}">
+                                        <button type="submit" class="btn btn-danger">Not Interested</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No events marked as interested yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
 
 {% endblock %}

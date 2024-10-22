@@ -39,6 +39,15 @@ class Event(db.Model):
     label = db.Column(db.String(50), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+class Interested(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+
+    user = db.relationship('User', backref=db.backref('interested_events', lazy=True))
+    event = db.relationship('Event', backref=db.backref('interested_users', lazy=True))
+
+
 # Create all tables
 with app.app_context():
     db.create_all()
@@ -136,11 +145,14 @@ def login():
     flash("Login successful!")
     return redirect("/home")
 
-# Home Route
 @app.route("/home")
 @login_required
 def home():
-    return render_template("home.html", background_image='/static/home-background.jpg')
+    # Assuming `Interested` is the table tracking interested events
+    # and `event` is a relationship to the `Event` model
+    interested_events = [interested.event for interested in current_user.interested_events]
+    return render_template("home.html", interested_events=interested_events, background_image='/static/home-background.jpg')
+
 
 # User loader for flask login
 @login_manager.user_loader
@@ -204,6 +216,61 @@ def host_event():
 def events():
     events = Event.query.all()  # Fetch all events from the database
     return render_template("events.html", events=events, background_image='/static/event-background.jpg')
+
+
+# Delete event route
+@app.route("/delete_event/<int:event_id>", methods=["POST"])
+@login_required
+def delete_event(event_id):
+    # Query the event by its ID
+    event = Event.query.get(event_id)
+
+    # Ensure the current user is the one who created the event
+    if event.user_id != current_user.id:
+        flash("You are not authorized to delete this event.", "danger")
+        return redirect(url_for('events'))
+
+    # Delete the event from the database
+    db.session.delete(event)
+    db.session.commit()
+
+    flash("Event deleted successfully", "success")
+    return redirect(url_for('events'))
+
+
+# Interested Route
+@app.route("/add_interested/<int:event_id>", methods=["POST"])
+@login_required
+def add_interested(event_id):
+    # Query the event
+    event = Event.query.get(event_id)
+
+    # Check if the user is already interested
+    already_interested = Interested.query.filter_by(user_id=current_user.id, event_id=event_id).first()
+
+    if already_interested:
+        flash("You have already marked interest in this event.", "info")
+    else:
+        # Add user to the Interested table
+        interested = Interested(user_id=current_user.id, event_id=event_id)
+        db.session.add(interested)
+        db.session.commit()
+        flash("Event added to your interested list.", "success")
+
+    return redirect(url_for('events'))
+
+
+@app.route("/remove_interested/<int:event_id>", methods=["POST"])
+@login_required
+def remove_interested(event_id):
+    # Get the current user and the event
+    interested_event = Interested.query.filter_by(user_id=current_user.id, event_id=event_id).first()
+    
+    if interested_event:
+        db.session.delete(interested_event)
+        db.session.commit()
+    
+    return redirect("/home")
 
 
 if __name__ == "__main__":
